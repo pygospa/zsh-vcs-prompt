@@ -121,7 +121,6 @@ function +vi-git-hook-detail-info() {
 }
 
 function _zsh_vcs_prompt_get_hg_status() {
-	local branch_name=$1
 	local ahead=0
 	local behind=0
 	local staged=0
@@ -132,42 +131,49 @@ function _zsh_vcs_prompt_get_hg_status() {
 	local clean=0
 	local unmerged=0
 
-	# Get changed files and stash list.
-	local staged_files
-	local unstaged_files
-	local untracked_files
-	local stash_list
-	local is_inside_work_tree
+	# Get information
+	local output="$(command hg summary --remote)"
+	local commit_line="$(echo $output | grep commit)"
+	local remote_line="$(echo $output | grep remote)"
 
-	outgoing=$(hg prompt '{outgoing|count}')
-	wait 5
-	if [ -z "$outgoing" ]; then
-		outgoing='0'
-	fi
+	local synced=0
+	local offline=0
 
-	incoming=$(hg prompt '{incoming|count}')
-	wait 5
-	if [ -z "$incoming" ]; then
-		incoming='0'
+	clean="$(echo "$commit_line" | grep clean)"
+
+	if [ -z "$clean" ]; then
+		clean=0
+		if [ -n "$(echo $commit_line | grep modified)" ]; then
+			unstaged="$(echo $commit_line | sed 's/.modified.*//' | sed 's/.* //')"
+		fi
+
+		if [ -n "$(echo $commit_line | grep added)" ]; then
+			staged="$(echo $commit_line | sed 's/.added.*//' | sed 's/.* //')"
+		fi
+
+		if [ -n "$(echo $commit_line | grep unkwnon)" ]; then
+			untracked="$(echo $commit_line | sed 's/.unknown.*//' | sed 's/.* //')"
+		fi
+	else
+		clean=1
 	fi
 	
-	clean=$(hg prompt '{status|modified}')
-	if [ "$clean" = '!' ]; then
-		unstaged='1'
-		clean='0'
-	else
-		clean='1'
-		unstaged='0'
+	synced="$(echo $remote_line | grep synced)"
+	offline="$(echo $remote_line | grep resolve)"
 
+	if [ -z "$synced" ] && [ -z "$offline" ]; then
+		behind="$(echo $remote_line | sed 's/.or.more.incoming.*//' | sed '/.* //')"
+		if [ "$behind" = 'unknown' ]; then
+			behind=0
+		else
+			behind="$(hg incoming | command grep -c changeset)"
+		fi
+
+		ahead="$(echo $remote_line | sed 's/.outgoing.*//' | sed 's/.* //')"
+		if [ "$ahead" = 'unknown' ]; then
+			ahead=0
+		fi
 	fi
-
-	untracked=$(hg prompt '{status|unknown}')
-	if [ "$untracked" = '?' ]; then
-		untracked='1'
-	else
-		untracked='0'
-	fi
-
 	# Output result
 	echo "$ahead\n$behind\n$staged\n$conflicts\n$unstaged\n$untracked\n$stashed\n$clean\n$unmerged"
 }
