@@ -161,18 +161,18 @@ else
     # No action.
     if [ -z "$ZSH_VCS_PROMPT_VCS_FORMATS" ]; then
         # VCS name
-        ZSH_VCS_PROMPT_VCS_FORMATS='(%{%B%F{yellow}%}#s%{%f%b%})'
+#        ZSH_VCS_PROMPT_VCS_FORMATS='(%{%B%F{yellow}%}#s%{%f%b%})'
         # Branch name
-        ZSH_VCS_PROMPT_VCS_FORMATS+='[%{%B%F{red}%}#b%{%f%b%}]'
+        ZSH_VCS_PROMPT_VCS_FORMATS+="${MAGENTA}[${YELLOW}#b${MAGENTA}]${NO_COLOR}"
     fi
     # Action.
     if [ -z "$ZSH_VCS_PROMPT_VCS_ACTION_FORMATS" ]; then
         # VCS name
-        ZSH_VCS_PROMPT_VCS_ACTION_FORMATS='(%{%B%F{yellow}%}#s%{%f%b%})'
+#        ZSH_VCS_PROMPT_VCS_ACTION_FORMATS='(%{%B%F{yellow}%}#s%{%f%b%})'
         # Branch name
-        ZSH_VCS_PROMPT_VCS_ACTION_FORMATS+='[%{%B%F{red}%}#b%{%f%b%}'
+        ZSH_VCS_PROMPT_VCS_ACTION_FORMATS+="${MAGENTA}[${YELLOW}#b"
         # Action
-        ZSH_VCS_PROMPT_VCS_ACTION_FORMATS+=':%{%B%F{red}%}#a%{%f%b%}]'
+        ZSH_VCS_PROMPT_VCS_ACTION_FORMATS+="${MAGENTA}:${RED}#a${MAGENTA}]${NO_COLOR}"
     fi
 
     ## Initialize.
@@ -317,7 +317,7 @@ function _zsh_vcs_prompt_update_vcs_status() {
 
     # Select formats.
     local used_formats
-    if [ "$vcs_name" = 'git' ]; then
+    if [ "$vcs_name" = 'git' -o "$vcs_name" = 'hg' ]; then
         used_formats=$ZSH_VCS_PROMPT_GIT_ACTION_FORMATS
         # Check action.
         if [ -z "$action" -o "$action" = '0' ]; then
@@ -338,7 +338,7 @@ function _zsh_vcs_prompt_update_vcs_status() {
     fi
 
     # Escape slash '/'.
-    branch=$(echo "$branch" | sed 's%/%\\/%g')
+    branch=$(echo "$branch" | sed 's%/%\\/%')
     # Set unmerged count.
     if [ -n "$unmerged" -a "$unmerged" != '0' ]; then
         branch="${branch}(${unmerged})"

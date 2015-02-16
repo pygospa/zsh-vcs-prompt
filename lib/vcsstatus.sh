@@ -37,7 +37,9 @@ zstyle ':vcs_info:*' max-exports 5
 
 # To be enable check-for-changes with hg.
 zstyle ':vcs_info:hg:*' get-revision true
+#zstyle ':vcs_info:hg*:*' 'check-for-changes' true
 zstyle ':vcs_info:(git|hg|bzr):*' use-simple true
+#zstyle ':vcs_info:hg*' actionformats "(%s|%a)[%i%u %b %m]"
 
 ## Set formats.
 #
@@ -55,6 +57,7 @@ zstyle ':vcs_info:*' formats '%s' '%b' '%m'
 zstyle ':vcs_info:*' actionformats '%s' '%b' '%m' '%a'
 
 zstyle ':vcs_info:(git|hg):*' check-for-changes false
+#zstyle ':vcs_info:git:*' 'check-for-changes' false
 
 
 # Check zsh version.
@@ -67,33 +70,41 @@ if is-at-least 4.3.11; then
 fi
 
 function _zsh_vcs_prompt_vcs_detail_info() {
-    local vcs_name
-    local vcs_branch_name
-    local vcs_action=0
-    local git_status
-
-    # Run vcs_info.
-    psvar=()
-    LANG=en_US.UTF-8 vcs_info
-    if [ -z "$vcs_info_msg_0_" ]; then
-        return 0
-    fi
-
-    vcs_name=$vcs_info_msg_0_
-    vcs_branch_name=$vcs_info_msg_1_
-    vcs_action=${vcs_info_msg_3_:-$vcs_action}
-
-    # Get git status.
-    if is-at-least 4.3.11; then
-        git_status=$vcs_info_msg_2_
-    else
-        if [ "$vcs_name" = 'git' ]; then
-            git_status=$(_zsh_vcs_prompt_get_git_status "$vcs_branch_name")
-        fi
-    fi
-
-    # Output result.
-    echo "$vcs_name\n$vcs_action\n$vcs_branch_name\n$git_status"
+	local vcs_name
+	local vcs_branch_name
+	local vcs_action=0
+	local git_status
+	
+	# Run vcs_info.
+	psvar=()
+	LANG=en_US.UTF-8 vcs_info
+	if [ -z "$vcs_info_msg_0_" ]; then
+		return 0
+	fi
+	
+	vcs_name=$vcs_info_msg_0_
+	vcs_branch_name=$vcs_info_msg_1_
+	vcs_action=${vcs_info_msg_3_:-$vcs_action}
+	
+	# Get git status.
+	if is-at-least 4.3.11; then
+		if [ "$vcs_name" = 'git' ]; then
+			git_status=$vcs_info_msg_2_
+		else
+			if [ "$vcs_name" = 'hg' ]; then
+				vcs_branch_name=$(hg prompt '{branch}')
+				git_status=$(_zsh_vcs_prompt_get_hg_status)
+			fi
+		fi
+	else
+	
+		if [ "$vcs_name" = 'git' ]; then
+			git_status=$(_zsh_vcs_prompt_get_git_status "$vcs_branch_name")
+		fi
+	fi
+	
+	# Output result.
+	echo "$vcs_name\n$vcs_action\n$vcs_branch_name\n$git_status"
 }
 
 # The hook function.
@@ -108,6 +119,59 @@ function +vi-git-hook-detail-info() {
     hook_com[misc]+=$git_status
     return 0
 }
+
+function _zsh_vcs_prompt_get_hg_status() {
+	local branch_name=$1
+	local ahead=0
+	local behind=0
+	local staged=0
+	local conflicts=0
+	local unstaged=0
+	local untracked=0
+	local stashed=0
+	local clean=0
+	local unmerged=0
+
+	# Get changed files and stash list.
+	local staged_files
+	local unstaged_files
+	local untracked_files
+	local stash_list
+	local is_inside_work_tree
+
+	outgoing=$(hg prompt '{outgoing|count}')
+	wait 5
+	if [ -z "$outgoing" ]; then
+		outgoing='0'
+	fi
+
+	incoming=$(hg prompt '{incoming|count}')
+	wait 5
+	if [ -z "$incoming" ]; then
+		incoming='0'
+	fi
+	
+	clean=$(hg prompt '{status|modified}')
+	if [ "$clean" = '!' ]; then
+		unstaged='1'
+		clean='0'
+	else
+		clean='1'
+		unstaged='0'
+
+	fi
+
+	untracked=$(hg prompt '{status|unknown}')
+	if [ "$untracked" = '?' ]; then
+		untracked='1'
+	else
+		untracked='0'
+	fi
+
+	# Output result
+	echo "$ahead\n$behind\n$staged\n$conflicts\n$unstaged\n$untracked\n$stashed\n$clean\n$unmerged"
+}
+
 
 # $1 : Branch name.
 function _zsh_vcs_prompt_get_git_status() {
