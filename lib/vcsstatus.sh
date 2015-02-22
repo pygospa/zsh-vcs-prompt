@@ -210,8 +210,14 @@ function _zsh_vcs_prompt_get_git_status() {
         unstaged_files=$(command git diff --name-status)
         untracked_files=$(command git ls-files --others --exclude-standard "$(command git rev-parse --show-toplevel)")
         if [ $? -ne 0 ]; then
-            # Error occurs on old version git.
-            untracked_files=$(cd "$1" > /dev/null && command git ls-files --others --exclude-standard)
+	    #TODO: When branch name is same as file name in repo, I get an
+	    #error here, as script tries to enter the directory. This quick and
+	    #dirty workaround checks if file is a directory before entering -
+	    #but that is of course not the solution. I have to investigate this
+	    #further!
+	    if [ -d $1 ]; then
+		untracked_files=$(cd "$1" > /dev/null && command git ls-files --others --exclude-standard)
+	    fi
         fi
         stash_list=$(command git stash list)
     else
